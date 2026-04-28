@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3-in-1 Game Hub</title>
+    <style>
+        body { background: #1a1a1a; color: white; font-family: sans-serif; text-align: center; margin: 0; }
+        #menu { padding: 20px; background: #333; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; font-weight: bold; border-radius: 5px; border: none; background: #007bff; color: white; }
+        button:hover { background: #0056b3; }
+        canvas { background: #000; display: block; margin: 20px auto; border: 4px solid #444; }
+        .game-container { display: none; }
+        .active { display: block; }
+        #clicker-score { font-size: 2em; margin-top: 50px; }
+    </style>
+</head>
+<body>
+
+    <div id="menu">
+        <h1>Mini Arcade</h1>
+        <button onclick="showGame('snake')">Play Snake</button>
+        <button onclick="showGame('pong')">Play Paddle</button>
+        <button onclick="showGame('clicker')">Play Clicker</button>
+    </div>
+
+    <!-- GAME 1: SNAKE -->
+    <div id="snake" class="game-container">
+        <h2>Snake</h2>
+        <canvas id="snakeCanvas" width="400" height="400"></canvas>
+    </div>
+
+    <!-- GAME 2: PONG/PADDLE -->
+    <div id="pong" class="game-container">
+        <h2>Paddle Ball</h2>
+        <canvas id="pongCanvas" width="400" height="400"></canvas>
+    </div>
+
+    <!-- GAME 3: CLICKER -->
+    <div id="clicker" class="game-container">
+        <h2>Clicker Mania</h2>
+        <div id="clicker-score">Score: 0</div>
+        <button style="width:200px; height:200px; border-radius:50%; font-size:1.5em; background:red;" onclick="clickGame()">CLICK ME!</button>
+    </div>
+
+    <script>
+        let currentInterval;
+
+        function showGame(gameId) {
+            // Hide all games and stop any running loops
+            document.querySelectorAll('.game-container').forEach(div => div.classList.remove('active'));
+            clearInterval(currentInterval);
+            
+            // Show selected game
+            document.getElementById(gameId).classList.add('active');
+
+            // Initialize game logic
+            if (gameId === 'snake') startSnake();
+            if (gameId === 'pong') startPong();
+        }
+
+        // --- SNAKE LOGIC ---
+        function startSnake() {
+            const canvas = document.getElementById("snakeCanvas");
+            const ctx = canvas.getContext("2d");
+            let snake = [{x: 10, y: 10}];
+            let food = {x: 15, y: 15};
+            let dx = 1, dy = 0;
+            
+            document.onkeydown = (e) => {
+                if (e.key === "ArrowUp" && dy === 0) { dx = 0; dy = -1; }
+                if (e.key === "ArrowDown" && dy === 0) { dx = 0; dy = 1; }
+                if (e.key === "ArrowLeft" && dx === 0) { dx = -1; dy = 0; }
+                if (e.key === "ArrowRight" && dx === 0) { dx = 1; dy = 0; }
+            };
+
+            currentInterval = setInterval(() => {
+                let head = {x: snake[0].x + dx, y: snake[0].y + dy};
+                snake.unshift(head);
+                if (head.x === food.x && head.y === food.y) {
+                    food = {x: Math.floor(Math.random()*20), y: Math.floor(Math.random()*20)};
+                } else { snake.pop(); }
+                
+                ctx.fillStyle = "black"; ctx.fillRect(0,0,400,400);
+                ctx.fillStyle = "red"; ctx.fillRect(food.x*20, food.y*20, 18, 18);
+                ctx.fillStyle = "lime"; snake.forEach(s => ctx.fillRect(s.x*20, s.y*20, 18, 18));
+                
+                if (head.x<0 || head.x>19 || head.y<0 || head.y>19) startSnake(); // Reset on hit
+            }, 100);
+        }
+
+        // --- PADDLE LOGIC ---
+        function startPong() {
+            const canvas = document.getElementById("pongCanvas");
+            const ctx = canvas.getContext("2d");
+            let x = 200, y = 200, dx = 2, dy = -2, paddleX = 150;
+
+            document.onmousemove = (e) => { 
+                let rect = canvas.getBoundingClientRect();
+                paddleX = e.clientX - rect.left - 40; 
+            };
+
+            currentInterval = setInterval(() => {
+                ctx.clearRect(0,0,400,400);
+                ctx.fillStyle = "white";
+                ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI*2); ctx.fill();
+                ctx.fillRect(paddleX, 380, 80, 10);
+                
+                if (x + dx > 390 || x + dx < 10) dx = -dx;
+                if (y + dy < 10) dy = -dy;
+                else if (y + dy > 370) {
+                    if (x > paddleX && x < paddleX + 80) dy = -dy;
+                    else { x=200; y=200; } // Reset
+                }
+                x += dx; y += dy;
+            }, 10);
+        }
+
+        // --- CLICKER LOGIC ---
+        let score = 0;
+        function clickGame() {
+            score++;
+            document.getElementById('clicker-score').innerText = "Score: " + score;
+        }
+    </script>
+</body>
+</html>
