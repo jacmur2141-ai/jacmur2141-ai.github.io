@@ -2,247 +2,150 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mega 13-in-1 Arcade</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Full Screen Mega Arcade</title>
     <style>
-        body { background: #1a1a1a; color: #00ff00; font-family: 'Courier New', monospace; text-align: center; margin: 0; }
-        header { background: #333; padding: 10px; border-bottom: 3px solid #00ff00; }
-        .menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; padding: 15px; }
-        .btn { background: #00ff00; color: #000; border: none; padding: 10px; cursor: pointer; font-weight: bold; font-size: 0.8em; }
-        .btn:hover { background: #fff; }
-        #game-stage { margin-top: 20px; }
-        canvas { background: #000; border: 4px solid #333; display: none; margin: 0 auto; box-shadow: 0 0 15px #00ff00; }
-        .active { display: block; }
-        #text-ui { display: none; font-size: 2em; margin-top: 50px; }
+        /* Full Screen Layout */
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; background: #000; color: #0f0;
+            font-family: 'Courier New', monospace;
+        }
+        
+        canvas { display: block; width: 100vw; height: 100vh; }
+
+        /* Floating "Switch Game" Button */
+        #switch-btn {
+            position: absolute; top: 20px; right: 20px;
+            padding: 15px 25px; background: rgba(0, 255, 0, 0.2);
+            color: #0f0; border: 2px solid #0f0; font-weight: bold;
+            cursor: pointer; z-index: 100; border-radius: 5px;
+            text-transform: uppercase;
+        }
+        #switch-btn:hover { background: #0f0; color: #000; }
+
+        /* Text UI for Non-Canvas games */
+        #ui-layer {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center; pointer-events: none;
+        }
+        #ui-layer button, #ui-layer input { pointer-events: auto; }
+        .game-title { position: absolute; top: 20px; left: 20px; font-size: 1.2em; opacity: 0.5; }
     </style>
 </head>
 <body>
 
-<header>
-    <h1>GAME HUB 13</h1>
-    <div class="menu">
-        <button class="btn" onclick="switchGame('snake')">SNAKE</button>
-        <button class="btn" onclick="switchGame('pong')">PADDLE</button>
-        <button class="btn" onclick="switchGame('clicker')">CLICKER</button>
-        <button class="btn" onclick="switchGame('dodge')">DODGE</button>
-        <button class="btn" onclick="switchGame('catch')">CATCH</button>
-        <button class="btn" onclick="switchGame('math')">FAST MATH</button>
-        <button class="btn" onclick="switchGame('guess')">GUESS #</button>
-        <button class="btn" onclick="switchGame('color')">COLOR TAP</button>
-        <button class="btn" onclick="switchGame('jump')">JUMP</button>
-        <button class="btn" onclick="switchGame('memory')">TILES</button>
-        <button class="btn" onclick="switchGame('reflex')">REFLEX</button>
-        <button class="btn" onclick="switchGame('blocks')">BLOCKS</button>
-        <button class="btn" onclick="switchGame('void')">VOID</button>
-    </div>
-</header>
+    <div id="game-title" class="game-title">SNAKE</div>
+    <button id="switch-btn" onclick="nextGame()">Next Game ➔</button>
 
-<div id="game-stage">
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
-    <div id="text-ui"></div>
-</div>
+    <div id="ui-layer"></div>
+    <canvas id="gameCanvas"></canvas>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const ui = document.getElementById('text-ui');
-    let loop, score = 0, gameActive = false;
+    const ui = document.getElementById('ui-layer');
+    const title = document.getElementById('game-title');
+    
+    let gameList = ['snake', 'pong', 'dodge', 'catch', 'jump', 'void', 'clicker', 'math', 'guess', 'color', 'reflex', 'blocks', 'tiles'];
+    let gameIndex = 0;
+    let loop, score = 0;
 
-    function switchGame(id) {
-        clearInterval(loop);
-        canvas.style.display = 'none';
-        ui.style.display = 'none';
-        gameActive = true;
-        score = 0;
+    // Resize canvas to full screen
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
 
-        if (id === 'snake') { canvas.style.display='block'; startSnake(); }
-        else if (id === 'pong') { canvas.style.display='block'; startPong(); }
-        else if (id === 'clicker') { ui.style.display='block'; startClicker(); }
-        else if (id === 'dodge') { canvas.style.display='block'; startDodge(); }
-        else if (id === 'catch') { canvas.style.display='block'; startCatch(); }
-        else if (id === 'math') { ui.style.display='block'; startMath(); }
-        else if (id === 'guess') { ui.style.display='block'; startGuess(); }
-        else if (id === 'color') { ui.style.display='block'; startColor(); }
-        else if (id === 'jump') { canvas.style.display='block'; startJump(); }
-        else if (id === 'memory') { ui.style.display='block'; startMemory(); }
-        else if (id === 'reflex') { ui.style.display='block'; startReflex(); }
-        else if (id === 'blocks') { canvas.style.display='block'; startBlocks(); }
-        else if (id === 'void') { canvas.style.display='block'; startVoid(); }
+    function nextGame() {
+        gameIndex = (gameIndex + 1) % gameList.length;
+        startGame(gameList[gameIndex]);
     }
 
-    // --- 1. SNAKE ---
+    function startGame(id) {
+        clearInterval(loop);
+        ctx.clearRect(0,0,canvas.width, canvas.height);
+        ui.innerHTML = "";
+        score = 0;
+        title.innerText = id.toUpperCase();
+
+        if(id === 'snake') startSnake();
+        if(id === 'pong') startPong();
+        if(id === 'dodge') startDodge();
+        if(id === 'catch') startCatch();
+        if(id === 'jump') startJump();
+        if(id === 'void') startVoid();
+        if(id === 'clicker') startClicker();
+        if(id === 'math') startMath();
+        // Add more starters here...
+    }
+
+    // --- GAME 1: SNAKE (Full Screen) ---
     function startSnake() {
-        let s = [{x:10,y:10}], f = {x:15,y:15}, d = {x:1,y:0};
+        let size = 30;
+        let s = [{x:5,y:5}], d = {x:1,y:0}, f = {x:10,y:10};
         document.onkeydown = e => {
-            if(e.key.includes('Up')&&d.y==0) d={x:0,y:-1}; if(e.key.includes('Down')&&d.y==0) d={x:0,y:1};
-            if(e.key.includes('Left')&&d.x==0) d={x:-1,y:0}; if(e.key.includes('Right')&&d.x==0) d={x:1,y:0};
+            if(e.key.includes('Up') && d.y==0) d={x:0,y:-1};
+            if(e.key.includes('Down') && d.y==0) d={x:0,y:1};
+            if(e.key.includes('Left') && d.x==0) d={x:-1,y:0};
+            if(e.key.includes('Right') && d.x==0) d={x:1,y:0};
         };
         loop = setInterval(() => {
             let h = {x:s[0].x+d.x, y:s[0].y+d.y};
             s.unshift(h);
-            if(h.x==f.x && h.y==f.y) { score++; f={x:Math.floor(Math.random()*20), y:Math.floor(Math.random()*20)}; } else s.pop();
-            ctx.fillStyle="black"; ctx.fillRect(0,0,400,400);
-            ctx.fillStyle="red"; ctx.fillRect(f.x*20, f.y*20, 18, 18);
-            ctx.fillStyle="lime"; s.forEach(p=>ctx.fillRect(p.x*20,p.y*20,18,18));
-            if(h.x<0||h.x>19||h.y<0||h.y>19) switchGame('snake');
+            if(h.x==f.x && h.y==f.y) {
+                f = {x:Math.floor(Math.random()*(canvas.width/size)), y:Math.floor(Math.random()*(canvas.height/size))};
+            } else s.pop();
+
+            ctx.fillStyle = "#000"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "red"; ctx.fillRect(f.x*size, f.y*size, size-2, size-2);
+            ctx.fillStyle = "#0f0"; s.forEach(p => ctx.fillRect(p.x*size, p.y*size, size-2, size-2));
+
+            if(h.x < 0 || h.y < 0 || h.x*size > canvas.width || h.y*size > canvas.height) startGame('snake');
         }, 100);
     }
 
-    // --- 2. PONG ---
+    // --- GAME 2: PADDLE (Full Screen) ---
     function startPong() {
-        let bx=200, by=200, dx=3, dy=-3, px=150;
-        canvas.onmousemove = e => px = e.offsetX - 40;
+        let bx=100, by=100, dx=5, dy=5, px=canvas.width/2;
+        window.onmousemove = e => px = e.clientX - 50;
         loop = setInterval(() => {
-            ctx.fillStyle="black"; ctx.fillRect(0,0,400,400);
-            ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(bx,by,8,0,7); ctx.fill();
-            ctx.fillRect(px,385,80,10);
+            ctx.fillStyle="black"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle="white"; ctx.beginPath(); ctx.arc(bx,by,15,0,7); ctx.fill();
+            ctx.fillRect(px, canvas.height-40, 100, 20);
             bx+=dx; by+=dy;
-            if(bx<10||bx>390) dx=-dx; if(by<10) dy=-dy;
-            if(by>375 && bx>px && bx<px+80) { dy=-dy; score++; }
-            if(by>400) switchGame('pong');
-        }, 15);
+            if(bx<0 || bx>canvas.width) dx=-dx;
+            if(by<0) dy=-dy;
+            if(by > canvas.height-60 && bx > px && bx < px+100) dy=-dy;
+            if(by > canvas.height) { bx=100; by=100; }
+        }, 16);
     }
 
-    // --- 3. CLICKER ---
-    function startClicker() {
-        ui.innerHTML = `Score: 0<br><button class="btn" style="width:200px; height:200px; border-radius:50%; background:red;" onclick="score++; startClicker()">TAP!</button>`;
-        ui.firstChild.textContent = `Score: ${score}`;
-    }
-
-    // --- 4. DODGE ---
-    function startDodge() {
-        let px=200, enemies = [];
-        canvas.onmousemove = e => px = e.offsetX;
-        loop = setInterval(() => {
-            ctx.fillStyle="black"; ctx.fillRect(0,0,400,400);
-            ctx.fillStyle="cyan"; ctx.fillRect(px-15, 370, 30, 30);
-            if(Math.random()<0.1) enemies.push({x:Math.random()*400, y:0});
-            ctx.fillStyle="red";
-            enemies.forEach((en, i) => {
-                en.y += 5;
-                ctx.fillRect(en.x-10, en.y, 20, 20);
-                if(en.y > 370 && Math.abs(en.x - px) < 25) switchGame('dodge');
-                if(en.y > 400) { enemies.splice(i,1); score++; }
-            });
-        }, 20);
-    }
-
-    // --- 5. CATCH ---
-    function startCatch() {
-        let px=150, fall = {x:Math.random()*380, y:0};
-        canvas.onmousemove = e => px = e.offsetX - 40;
-        loop = setInterval(() => {
-            ctx.fillStyle="#111"; ctx.fillRect(0,0,400,400);
-            ctx.fillStyle="orange"; ctx.fillRect(px, 380, 80, 20);
-            ctx.fillStyle="gold"; ctx.beginPath(); ctx.arc(fall.x, fall.y, 10, 0, 7); ctx.fill();
-            fall.y += 4;
-            if(fall.y > 380 && fall.x > px && fall.x < px+80) { score++; fall={x:Math.random()*380, y:0}; }
-            if(fall.y > 400) switchGame('catch');
-        }, 20);
-    }
-
-    // --- 6. FAST MATH ---
-    function startMath() {
-        let a = Math.floor(Math.random()*10), b = Math.floor(Math.random()*10);
-        let ans = a + b;
-        ui.innerHTML = `${a} + ${b} = ? <br> <input type="number" id="ans"> <button class="btn" onclick="checkMath(${ans})">GO</button>`;
-    }
-    window.checkMath = (correct) => {
-        if(document.getElementById('ans').value == correct) { score++; startMath(); }
-        else alert("Wrong! Score: " + score);
-    }
-
-    // --- 7. GUESS NUMBER ---
-    function startGuess() {
-        let target = Math.floor(Math.random()*10) + 1;
-        ui.innerHTML = `Guess 1-10: <input type="number" id="g"> <button class="btn" onclick="checkGuess(${target})">TRY</button>`;
-    }
-    window.checkGuess = (t) => {
-        if(document.getElementById('g').value == t) { alert("Got it!"); score++; startGuess(); }
-        else alert("Nope, it was " + t);
-    }
-
-    // --- 8. COLOR TAP ---
-    function startColor() {
-        let colors = ["red", "blue", "yellow", "green"];
-        let target = colors[Math.floor(Math.random()*4)];
-        ui.innerHTML = `Tap the <span style="color:${target}">${target.toUpperCase()}</span> box!<br>`;
-        colors.forEach(c => {
-            ui.innerHTML += `<button onclick="checkColor('${c}', '${target}')" style="background:${c}; width:50px; height:50px; margin:5px;"></button>`;
-        });
-    }
-    window.checkColor = (pick, target) => {
-        if(pick === target) { score++; startColor(); } else alert("Wrong! Final: " + score);
-    }
-
-    // --- 9. JUMP ---
-    function startJump() {
-        let py=370, v=0, obs={x:400};
-        window.onclick = () => { if(py>=370) v=-12; };
-        loop = setInterval(() => {
-            ctx.fillStyle="#000"; ctx.fillRect(0,0,400,400);
-            ctx.fillStyle="yellow"; ctx.fillRect(50, py, 30, 30);
-            ctx.fillStyle="red"; ctx.fillRect(obs.x, 370, 20, 30);
-            v += 0.6; py += v; if(py > 370) { py=370; v=0; }
-            obs.x -= 6; if(obs.x < -20) { obs.x=400; score++; }
-            if(obs.x < 80 && obs.x > 30 && py > 340) switchGame('jump');
-        }, 20);
-    }
-
-    // --- 10. TILES (Memory) ---
-    function startMemory() {
-        let sequence = [], user = [];
-        ui.innerHTML = "Remember the sequence! (Under Construction - Logic placeholder)";
-        // Simple variant: click the button 5 times fast
-        ui.innerHTML = `<button class="btn" onclick="score++; ui.innerHTML='Clicks: '+score">Click 10 times to win!</button>`;
-    }
-
-    // --- 11. REFLEX ---
-    function startReflex() {
-        ui.innerHTML = "Wait for GREEN...";
-        ui.style.background = "red";
-        setTimeout(() => {
-            ui.style.background = "green";
-            ui.innerHTML = "CLICK NOW!";
-            let start = Date.now();
-            ui.onclick = () => { alert("Time: " + (Date.now() - start) + "ms"); startReflex(); };
-        }, Math.random()*3000 + 1000);
-    }
-
-    // --- 12. BLOCKS (Mini-Breakout) ---
-    function startBlocks() {
-        let bx=200, by=200, dx=2, dy=-2, px=150, blocks=[{x:50,y:50},{x:150,y:50},{x:250,y:50}];
-        canvas.onmousemove = e => px = e.offsetX - 40;
-        loop = setInterval(() => {
-            ctx.clearRect(0,0,400,400);
-            ctx.fillStyle="white"; ctx.fillRect(px, 380, 80, 10);
-            ctx.beginPath(); ctx.arc(bx,by,5,0,7); ctx.fill();
-            blocks.forEach((b,i) => {
-                ctx.fillStyle="purple"; ctx.fillRect(b.x, b.y, 80, 20);
-                if(bx>b.x && bx<b.x+80 && by>b.y && by<b.y+20) { dy=-dy; blocks.splice(i,1); score++; }
-            });
-            bx+=dx; by+=dy;
-            if(bx<0||bx>400) dx=-dx; if(by<0) dy=-dy;
-            if(by>370 && bx>px && bx<px+80) dy=-dy;
-            if(by>400) switchGame('blocks');
-            if(blocks.length==0) alert("Win!");
-        }, 15);
-    }
-
-    // --- 13. VOID ---
+    // --- GAME 3: VOID (Full Screen) ---
     function startVoid() {
-        let x=200, y=200;
+        let x = canvas.width/2, y = canvas.height/2;
         document.onkeydown = e => {
-            if(e.key.includes('Up')) y-=10; if(e.key.includes('Down')) y+=10;
-            if(e.key.includes('Left')) x-=10; if(e.key.includes('Right')) x+=10;
+            if(e.key.includes('Up')) y-=20; if(e.key.includes('Down')) y+=20;
+            if(e.key.includes('Left')) x-=20; if(e.key.includes('Right')) x+=20;
         };
         loop = setInterval(() => {
-            ctx.fillStyle="rgba(0,0,0,0.1)"; ctx.fillRect(0,0,400,400);
-            ctx.fillStyle="#0f0"; ctx.fillRect(x,y,5,5);
-            score++;
+            ctx.fillStyle = "rgba(0,0,0,0.05)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#0f0"; ctx.shadowBlur = 15; ctx.shadowColor = "#0f0";
+            ctx.fillRect(x,y,10,10);
         }, 30);
     }
 
+    // --- GAME 4: CLICKER ---
+    function startClicker() {
+        ui.innerHTML = `<h1 id="sc">0</h1><button onclick="score++; document.getElementById('sc').innerText=score" style="width:200px; height:200px; border-radius:50%; border:none; background:red; color:white; font-size:2em; cursor:pointer;">TAP ME</button>`;
+    }
+
+    // Initialize first game
+    startGame('snake');
 </script>
 </body>
 </html>
+
